@@ -20,7 +20,7 @@ require_once 'src/AdaSdk.php';
 		var_dump($user);
 		
 		/**
-         * gets testers associated with authorized user as php serialized
+                 * gets testers associated with authorized user as php serialized
 		 */
 		$testers = unserialize($adasdk->get('testers.php'));
 		/**
