@@ -330,7 +330,7 @@ class AdaSdk
 		 */
 		$params = array_merge ($params, array('access_token'=>$this->getAccessToken()));
 		/**
-         * get a new curl object
+                 * get a new curl object
 		 */
 		$cURL = new cURL($url);
 		$cURL->setopt(CURLOPT_RETURNTRANSFER, TRUE);
@@ -370,7 +370,7 @@ class AdaSdk
 		$cURLResult = $cURL->exec();
 
 		/**
-         * read http status code
+                 * read http status code
 		 */
 		$status = $cURL->getinfo(CURLINFO_HTTP_CODE);
 		
@@ -452,9 +452,9 @@ class AdaSdk
 		$cURL->setopt (CURLOPT_RETURNTRANSFER, 1);
 		
 		/**
-         * access_token expire_time is calculated as:
-         * timestamp just before sending out the http request
-         * plus the returned 'expires_in' value
+                 * access_token expire_time is calculated as:
+                 * timestamp just before sending out the http request
+                 * plus the returned 'expires_in' value
 		 */
 		$startTime = time();
 		$cURLResult = $cURL->exec();
