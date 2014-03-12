@@ -20,10 +20,16 @@
  */
 namespace AdaSdk;
 
+/**
+ * JSON is needed for OAuth2 implementation
+ */
 if (!function_exists('json_decode')) {
 	throw new AdaSdkException('ADAsdk needs the JSON PHP extension.',AdaSdk::ADASDK_ERROR);
 }
 
+/**
+ * cURL is needed. Period.
+ */
 if (!@include_once('cURL.inc.php')) {
 	throw new AdaSdkException('ADAsdk needs the cURL.inc.php file.',AdaSdk::ADASDK_ERROR);
 }
@@ -91,11 +97,11 @@ class AdaSdk
 	const ADASDK_ERROR = 667;
 	
 	/**
-	 * Domains used when calling oauth2 or api
+	 * Domains used when calling OAuth2 or api
 	 * 
 	 * @var array
 	 */
-	private static $DOMAINS = array (
+	private $_domains = array (
 			'oauth2'	=>	'http://www.localada.com/api',	// https here
 			'api'		=>	'http://www.localada.com/api'
 	);
@@ -115,11 +121,19 @@ class AdaSdk
 	private $_clientSecret = null;
 	
 	/**
-	 * The Oauth2 access token
+	 * The OAuth2 access token
 	 * 
 	 * * @var string
 	 */
 	private $_accessToken = null;
+	
+	/**
+	 * Type of OAuth2 access token
+	 * (bearer, etc...)
+	 * 
+	 * @var string
+	 */
+	private $_tokenType = null;
 	
 	/**
 	 * The HTTP optional headers
@@ -138,16 +152,20 @@ class AdaSdk
 	/**
 	 * Instantiates a new AdaSdk object with the passed configuration array
 	 * 
-	 * @param array $config configuration array, must contain at least clientID and clientSecret keys
+	 * @param array $config configuration array, must contain at least clientID and clientSecret keys, url of ADA installation
 	 * @throws AdaSdkException if an invalid configuration array is passed
 	 */
 	public function __construct($config) {
 		
-		if (!is_array($config) || is_null($config['clientID']) || is_null($config['clientSecret'])) {
+		if (!is_array($config) || is_null($config['clientID']) || is_null($config['clientSecret']) || is_null($config['url'])) {
 			throw new AdaSdkException(__CLASS__.': must provide a valid config array',self::ADASDK_ERROR);
 		} else {
 			$this->setClientID($config['clientID']);
 			$this->setClientSecret($config['clientSecret']);
+			$this->_domains = array (
+				'oauth2' => str_replace('http://', 'http://', $config['url']).'/api', // https in second str_replace param
+				'api'    => $config['url'].'/api'
+			);
 			
 			if (isset($config['silentMode']) && is_bool($config['silentMode'])) {
 				$this->silentMode($config['silentMode']);
@@ -200,7 +218,7 @@ class AdaSdk
 	}
 	
 	/**
-	 * Oauth2 access token setter for API calls
+	 * OAuth2 access token setter for API calls
 	 * Stores the passed access_token both in object and session
 	 * 
 	 * @param string $accessToken the access token
@@ -216,19 +234,42 @@ class AdaSdk
 	}
 	
 	/**
-	 * Oauth2 access token getter for API calls
+	 * OAuth2 access token getter for API calls
 	 * If a session is not there, start it then get the access_token
 	 * 
 	 * @return string the access token to be used
 	 */
 	public function getAccessToken () {
 		
-		if (self::_is_session_started() === FALSE) {
-			session_start();
-		}
 		$this->_initFromSession();
-		
 		return $this->_accessToken;
+	}
+	
+	/**
+	 * OAuth2 access token type setter for API calls
+	 * Stores the passed type both in object and session
+	 * 
+	 * @param string $tokenType the type of the access token
+	 * @return \AdaSdk\AdaSdk
+	 */
+	public function setTokenType($tokenType) {
+		
+		// stores the type in object
+		$this->_tokenType = $tokenType;
+		// stores the type in session
+		$_SESSION[self::ADASDK_SESSION_NAME]['token_type'] = $this->_tokenType;
+		return $this;
+	}
+	
+	/**
+	 * OAuth2 access token type getter for API calls
+	 * 
+	 * @return string the type of the access token
+	 */
+	public function getTokenTpye() {
+
+		$this->_initFromSession();		
+		return $this->_tokenType;
 	}
 	
 	/**
@@ -239,7 +280,11 @@ class AdaSdk
 	 */
 	public function setHeaders ($headers) {
 		
-		$this->_headers = $headers;
+		if (!is_array($this->_headers)) $this->_headers = array();
+		
+		if (is_array($headers)) {
+			foreach ($headers as $key=>$value) $this->_headers[$key] = $value;
+		}
 		return $this;
 	}
 	
@@ -250,7 +295,7 @@ class AdaSdk
 	 */
 	public function getHeaders () {
 		
-		return $this->_headers;
+		return (is_null($this->_headers) ? array() : $this->_headers);
 	}
 	
 	/**
@@ -323,12 +368,22 @@ class AdaSdk
 	 * @throws AdaSdkException if an non-ok http status is returned and is not is silent mode
 	 * @return mixed the result on success and on failure if in silent mode
 	 */
-	private function _execRequest ($type, $url, $params = array()) {
+	private function _execRequest ($type, $url, $params) {
 
+		if (is_object($params) && in_array($type, array(self::POST, self::PUT) )) {
+			$params = json_encode($params);
+			$this->setHeaders(array('ContentType','Content-Type: application/json'));
+		}
+		
 		/**
-		 * add the access token to the params array
+		 * add the access token to the headers, setting a key
+		 * will cause the OAuth2 to be overridden rather 
+		 * than added in subsequent API method calls 
 		 */
-		$params = array_merge ($params, array('access_token'=>$this->getAccessToken()));
+		$this->setHeaders(array( 'OAuth2'=>
+					    			'Authorization: '.ucfirst(strtolower($this->getTokenTpye()).
+									' '.$this->getAccessToken())));
+		
 		/**
                  * get a new curl object
 		 */
@@ -343,6 +398,7 @@ class AdaSdk
 				$cURL->setopt (CURLOPT_URL, $url);
 				$cURL->setopt (CURLOPT_POST, TRUE);
 				$cURL->setopt (CURLOPT_POSTFIELDS, $params);
+				$this->setHeaders(array('ContentLength'=>'Content-Length: '.strlen($params)));
 				break;
 			case self::DELETE:
 				$cURL->setopt (CURLOPT_URL, $url . '?' . http_build_query($params));
@@ -352,23 +408,21 @@ class AdaSdk
 				$cURL->setopt (CURLOPT_URL, $url);
 				$cURL->setopt (CURLOPT_CUSTOMREQUEST, self::PUT);
 				$cURL->setopt (CURLOPT_POSTFIELDS, $params);
+				$this->setHeaders(array('ContentLength'=>'Content-Length: '.strlen($params)));
 				break;
 		}
 		
 		/**
 		 * set request headers, if any
 		 */
-		if (!is_null($this->getHeaders())) {
-			$cURL->setopt(CURLOPT_HEADER, $this->getHeaders());
-		} else {
-			$cURL->setopt(CURLOPT_HEADER, 0);
+		if (!is_null($this->getHeaders()) && is_array($this->getHeaders())) {			
+			$cURL->setopt(CURLOPT_HTTPHEADER, $this->getHeaders());
 		}
-		
+				
 		/**
 		 * execute the request
 		 */
 		$cURLResult = $cURL->exec();
-
 		/**
                  * read http status code
 		 */
@@ -378,6 +432,7 @@ class AdaSdk
 		 * close curl
 		 */
 		$cURL->close();
+		unset ($cURL);
 		
 		/**
 		 * Return according to the status
@@ -408,15 +463,19 @@ class AdaSdk
 		// make $endpoint agnostic to leading slash
 		if ($endpoint{0}!=='/') $endpoint = '/' . $endpoint;
 		
-		return self::$DOMAINS['api'].'/'.self::API_VERSION.$endpoint;
+		return $this->_domains['api'].'/'.self::API_VERSION.$endpoint;
 	}
 	
 	/**
 	 * Inits the access token from the session:
 	 * If an unexpired access token is stored in session, sets it
-	 * else ask for a new Oauth2 access token
+	 * else ask for a new OAuth2 access token
 	 */
 	private function _initFromSession() {
+		
+		if (self::_is_session_started() === FALSE) {
+			session_start();
+		}
 		
 		if (isset   ($_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time']) && 
 		    isset   ($_SESSION[self::ADASDK_SESSION_NAME]['access_token'])      &&
@@ -428,13 +487,14 @@ class AdaSdk
 			 * set it to the current token, else ask for a new one
 			 */			 
 			$this->setAccessToken($_SESSION[self::ADASDK_SESSION_NAME]['access_token']);
+			$this->setTokenType($_SESSION[self::ADASDK_SESSION_NAME]['token_type']);
 		} else {
 			$this->setAccessToken($this->_getOAuth2AccessToken());		
 		}
 	}
 	
 	/**
-	 * Asks for a new Oauth2 access token and stores it in
+	 * Asks for a new OAuth2 access token and stores it in
 	 * the session together with its expiration time.
 	 * If some error occours always throws an exception
 	 * regardless of the _silentMode value
@@ -444,7 +504,7 @@ class AdaSdk
 	 */
 	private function _getOAuth2AccessToken() {
 		
-		$cURL = new cURL(self::$DOMAINS['oauth2'].'/token');
+		$cURL = new cURL($this->_domains['oauth2'].'/token');
 		$cURL->setopt (CURLOPT_USERPWD, $this->getClientID().':'.$this->getClientSecret());
 		$cURL->setopt (CURLOPT_POST, TRUE);
 		$cURL->setopt (CURLOPT_POSTFIELDS, 'grant_type=client_credentials');
@@ -466,6 +526,8 @@ class AdaSdk
 			if (is_object($responseObj)) {
 				// set expire time in session
 				$_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time'] = $startTime + $responseObj->expires_in;
+				// stores the token type
+				$this->setTokenType($responseObj->token_type);
 				// return the access_token
 				return $responseObj->access_token;
 			} else {
@@ -476,7 +538,7 @@ class AdaSdk
 			if (is_object($responseObj)) {
 				$message = $responseObj->error_description;
 			} else {
-				$message = "Unknown OAuth error ".$responseObj;
+				$message = "Unknown OAuth2 error ".$responseObj;
 			}
 			throw new AdaSdkException($message, $status);
 		} else {
