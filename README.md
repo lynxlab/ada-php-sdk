@@ -16,6 +16,7 @@ Using the Ada PHP SDK is as simple as:
     $config = array(
         'clientID'=>'YOUR_CLIENT_ID',
         'clientSecret'=>'YOUR_CLIENT_SECRET',
+        'url'=>'YOUR_ADA_INSTALLATION_URL',
         'silentMode'=>true
     );
     ```
