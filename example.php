@@ -21,7 +21,7 @@ require_once 'src/AdaSdk.php';
 		var_dump($user);
 		
 		/**
-                 * gets testers associated with authorized user as php serialized
+		 * gets testers associated with authorized user as php serialized
 		 */
 		$testers = unserialize($adasdk->get('testers.php'));
 		/**
@@ -29,9 +29,25 @@ require_once 'src/AdaSdk.php';
 		 */
 		echo '<h1>Auth Switcher belongs to following testers</h1>';
 		var_dump($testers);
-
 		
+		/**
+		 * Build a user array to be saved as new student
+		 */
+		$userArray['name'] = 'John';
+		$userArray['surname'] = 'Smith';
+		$userArray['email'] = 'johnsmith@foobar.com';
+		$userArray['birthdate'] = '01/10/1960'; // in DD/MM/YYYY format only
 		
+		/**
+		 * sends a post request to save the user and gets the response
+		 */
+		$saveResponse = $adasdk->post('users',$userArray);
+		
+		/**
+		 * dump the response, holding the status and the saved user_id
+		 * if it's SUCCESS
+		 */
+		var_dump ($saveResponse);
 		
 	} catch (\ADAsdk\AdaSdkException $e) {
 		echo '<pre>ADASDK error at '.__FILE__.': '.__LINE__." this is fatal, I've given up\r\n";
