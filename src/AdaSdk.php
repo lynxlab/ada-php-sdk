@@ -101,10 +101,7 @@ class AdaSdk
 	 * 
 	 * @var array
 	 */
-	private $_domains = array (
-			'oauth2'	=>	'http://www.localada.com/api',	// https here
-			'api'		=>	'http://www.localada.com/api'
-	);
+	private $_domains = null;
 	
 	/**
 	 * The Client ID
@@ -160,12 +157,24 @@ class AdaSdk
 		if (!is_array($config) || is_null($config['clientID']) || is_null($config['clientSecret']) || is_null($config['url'])) {
 			throw new AdaSdkException(__CLASS__.': must provide a valid config array',self::ADASDK_ERROR);
 		} else {
-			$this->setClientID($config['clientID']);
-			$this->setClientSecret($config['clientSecret']);
-			$this->_domains = array (
-				'oauth2' => str_replace('http://', 'http://', $config['url']).'/api', // https in second str_replace param
-				'api'    => $config['url'].'/api'
-			);
+			/**
+			 * Sets class properties from config array, thwroing
+			 * exceptions if values are not correctly passed
+			 */
+			if (strlen($config['clientID'])>0) {
+				$this->setClientID($config['clientID']);
+			} else throw new AdaSdkException(__CLASS__.': must provide a clientID in the config array',self::ADASDK_ERROR);
+			
+			if (strlen($config['clientSecret'])) {
+				$this->setClientSecret($config['clientSecret']);
+			} else throw new AdaSdkException(__CLASS__.': must provide a clientSecret in the config array',self::ADASDK_ERROR);
+			
+			if (strlen($config['url'])>0) {
+				$this->_domains = array (
+					'oauth2' => str_replace('http://', 'http://', $config['url']).'/api', // https in second str_replace param
+					'api'    => $config['url'].'/api'
+				);
+			} else throw new AdaSdkException(__CLASS__.': must provide an url in the config array',self::ADASDK_ERROR);
 			
 			if (isset($config['silentMode']) && is_bool($config['silentMode'])) {
 				$this->silentMode($config['silentMode']);
@@ -284,6 +293,8 @@ class AdaSdk
 		
 		if (is_array($headers)) {
 			foreach ($headers as $key=>$value) $this->_headers[$key] = $value;
+		} else if (is_null($headers)) {
+			$this->_headers = null;
 		}
 		return $this;
 	}
@@ -373,6 +384,8 @@ class AdaSdk
 		if (is_object($params) && in_array($type, array(self::POST, self::PUT) )) {
 			$params = json_encode($params);
 			$this->setHeaders(array('ContentType','Content-Type: application/json'));
+		} else {		
+			$params = http_build_query($params);
 		}
 		
 		/**
@@ -385,14 +398,15 @@ class AdaSdk
 									' '.$this->getAccessToken())));
 		
 		/**
-                 * get a new curl object
+		 * get a new curl object and set its defaults
 		 */
 		$cURL = new cURL($url);
 		$cURL->setopt(CURLOPT_RETURNTRANSFER, TRUE);
+		$cURL->setopt(CURLOPT_USERAGENT, __CLASS__.' v'.self::VERSION);
 		
 		switch ($type) {
 			case self::GET:
-				$cURL->setopt (CURLOPT_URL, $url . '?' . http_build_query($params));
+				$cURL->setopt (CURLOPT_URL, $url . '?' . $params);
 				break;
 			case self::POST:
 				$cURL->setopt (CURLOPT_URL, $url);
@@ -401,7 +415,7 @@ class AdaSdk
 				$this->setHeaders(array('ContentLength'=>'Content-Length: '.strlen($params)));
 				break;
 			case self::DELETE:
-				$cURL->setopt (CURLOPT_URL, $url . '?' . http_build_query($params));
+				$cURL->setopt (CURLOPT_URL, $url . '?' . $params);
 				$cURL->setopt (CURLOPT_CUSTOMREQUEST, self::DELETE);
 				break;
 			case self::PUT:
@@ -423,8 +437,14 @@ class AdaSdk
 		 * execute the request
 		 */
 		$cURLResult = $cURL->exec();
+		
 		/**
-                 * read http status code
+		 * Reset Headers for next execution
+		 */
+		$this->setHeaders(null);
+		
+		/**
+		 * read http status code
 		 */
 		$status = $cURL->getinfo(CURLINFO_HTTP_CODE);
 		
@@ -512,9 +532,9 @@ class AdaSdk
 		$cURL->setopt (CURLOPT_RETURNTRANSFER, 1);
 		
 		/**
-                 * access_token expire_time is calculated as:
-                 * timestamp just before sending out the http request
-                 * plus the returned 'expires_in' value
+		 * access_token expire_time is calculated as:
+		 * timestamp just before sending out the http request
+		 * plus the returned 'expires_in' value
 		 */
 		$startTime = time();
 		$cURLResult = $cURL->exec();
