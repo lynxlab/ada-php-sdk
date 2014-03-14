@@ -49,6 +49,11 @@ require_once 'src/AdaSdk.php';
 		 */
 		var_dump ($saveResponse);
 		
+		/**
+		 * Subscribe a user to a course instance
+		 */
+		$adasdk->post('subscriptions', array('id_course_instance'=>1,'username'=>$userArray['email']));
+		
 	} catch (\ADAsdk\AdaSdkException $e) {
 		echo '<pre>ADASDK error at '.__FILE__.': '.__LINE__." this is fatal, I've given up\r\n";
 		echo 'Error Code: '.$e->getCode().' - Error Message: '.$e->getMessage().'</pre>';
