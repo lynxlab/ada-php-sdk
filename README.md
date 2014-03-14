@@ -25,7 +25,7 @@ Using the Ada PHP SDK is as simple as:
     
 3. Instantiate a new AdaSdk object and use it:
     ```php
-    $adasdk = new \ADAsdk\AdaSdk($config);	
+    $adasdk = new \ADASdk\AdaSdk($config);	
 	/**
 	 * load a user in json format
 	 */
