@@ -9,7 +9,7 @@ require_once 'src/AdaSdk.php';
 	);
 
 	try {
-		$adasdk = new \ADAsdk\AdaSdk($config);	
+		$adasdk = new \ADASdk\AdaSdk($config);	
 		/**
 		 * load a user in json format
 		 */
