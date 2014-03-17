@@ -70,11 +70,6 @@ class AdaSdk
 	const API_VERSION = 'v1';
 	
 	/**
-	 * session name
-	 */
-	const ADASDK_SESSION_NAME = 'adasdk';
-	
-	/**
 	 * verbs constants
 	 */
 	const POST   = 'POST';
@@ -147,6 +142,13 @@ class AdaSdk
 	private $_silentMode = false;
 	
 	/**
+	 * Application name to store the Session array
+	 * 
+	 * @var string
+	 */
+	private $_applicationName = false;
+	
+	/**
 	 * Instantiates a new AdaSdk object with the passed configuration array
 	 * 
 	 * @param array $config configuration array, must contain at least clientID and clientSecret keys, url of ADA installation
@@ -154,7 +156,8 @@ class AdaSdk
 	 */
 	public function __construct($config) {
 		
-		if (!is_array($config) || is_null($config['clientID']) || is_null($config['clientSecret']) || is_null($config['url'])) {
+		if (!is_array($config) || is_null($config['clientID']) || is_null($config['clientSecret']) ||
+		     is_null($config['url']) || is_null($config['applicationName'])) {
 			throw new AdaSdkException(__CLASS__.': must provide a valid config array',self::ADASDK_ERROR);
 		} else {
 			/**
@@ -175,6 +178,12 @@ class AdaSdk
 					'api'    => $config['url'].'/api'
 				);
 			} else throw new AdaSdkException(__CLASS__.': must provide an url in the config array',self::ADASDK_ERROR);
+			
+			if (strlen(trim($config['applicationName']))>0) {
+				$this->_applicationName = trim($config['applicationName']); 
+			} else {
+				throw new AdaSdkException(__CLASS__.': must provide an application Name in the config array',self::ADASDK_ERROR);
+			}
 			
 			if (isset($config['silentMode']) && is_bool($config['silentMode'])) {
 				$this->silentMode($config['silentMode']);
@@ -238,7 +247,7 @@ class AdaSdk
 		// stores the token in object
 		$this->_accessToken = $accessToken;
 		// stores the token in session
-		$_SESSION[self::ADASDK_SESSION_NAME]['access_token'] = $this->_accessToken; 
+		$_SESSION[$this->_applicationName]['access_token'] = $this->_accessToken; 
 		return $this;
 	}
 	
@@ -266,7 +275,7 @@ class AdaSdk
 		// stores the type in object
 		$this->_tokenType = $tokenType;
 		// stores the type in session
-		$_SESSION[self::ADASDK_SESSION_NAME]['token_type'] = $this->_tokenType;
+		$_SESSION[$this->_applicationName]['token_type'] = $this->_tokenType;
 		return $this;
 	}
 	
@@ -497,17 +506,17 @@ class AdaSdk
 			session_start();
 		}
 		
-		if (isset   ($_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time']) && 
-		    isset   ($_SESSION[self::ADASDK_SESSION_NAME]['access_token'])      &&
-		    strlen  ($_SESSION[self::ADASDK_SESSION_NAME]['access_token'])>0    && 
-		    !is_null($_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time']) &&
-		    time() < intval($_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time'])) {			
+		if (isset   ($_SESSION[$this->_applicationName]['token_expire_time']) && 
+		    isset   ($_SESSION[$this->_applicationName]['access_token'])      &&
+		    strlen  ($_SESSION[$this->_applicationName]['access_token'])>0    && 
+		    !is_null($_SESSION[$this->_applicationName]['token_expire_time']) &&
+		    time() < intval($_SESSION[$this->_applicationName]['token_expire_time'])) {			
 			/**
 			 * if session stored access_token has not expired
 			 * set it to the current token, else ask for a new one
 			 */			 
-			$this->setAccessToken($_SESSION[self::ADASDK_SESSION_NAME]['access_token']);
-			$this->setTokenType($_SESSION[self::ADASDK_SESSION_NAME]['token_type']);
+			$this->setAccessToken($_SESSION[$this->_applicationName]['access_token']);
+			$this->setTokenType($_SESSION[$this->_applicationName]['token_type']);
 		} else {
 			$this->setAccessToken($this->_getOAuth2AccessToken());		
 		}
@@ -545,7 +554,7 @@ class AdaSdk
 			$responseObj = json_decode($cURLResult);
 			if (is_object($responseObj)) {
 				// set expire time in session
-				$_SESSION[self::ADASDK_SESSION_NAME]['token_expire_time'] = $startTime + $responseObj->expires_in;
+				$_SESSION[$this->_applicationName]['token_expire_time'] = $startTime + $responseObj->expires_in;
 				// stores the token type
 				$this->setTokenType($responseObj->token_type);
 				// return the access_token

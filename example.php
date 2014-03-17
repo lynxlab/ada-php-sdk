@@ -2,6 +2,7 @@
 require_once 'src/AdaSdk.php';
 
 	$config = array(
+			'applicationName'=>'ADA_SDK_SAMPLE',
 			'clientID'=>'YOUR_CLIENT_ID',
 			'clientSecret'=>'YOUR_CLIENT_SECRET',
 			'url'=>'YOUR_ADA_INSTALLATION_URL'
