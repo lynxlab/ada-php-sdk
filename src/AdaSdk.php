@@ -172,10 +172,13 @@ class AdaSdk
 				$this->setClientSecret($config['clientSecret']);
 			} else throw new AdaSdkException(__CLASS__.': must provide a clientSecret in the config array',self::ADASDK_ERROR);
 			
-			if (strlen($config['url'])>0) {
+			if (($urlLength = strlen($config['url']))>0) {
+				
+				if ($config['url']{$urlLength-1} !== '/') $config['url'] .= '/';
+				
 				$this->_domains = array (
-					'oauth2' => str_replace('http://', 'http://', $config['url']).'/api', // https in second str_replace param
-					'api'    => $config['url'].'/api'
+					'oauth2' => str_replace('http://', 'http://', $config['url']).'api', // https in second str_replace param
+					'api'    => $config['url'].'api'
 				);
 			} else throw new AdaSdkException(__CLASS__.': must provide an url in the config array',self::ADASDK_ERROR);
 			
