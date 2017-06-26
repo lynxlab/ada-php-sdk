@@ -1,0 +1,16 @@
+{
+  "autoload": {
+    "psr-4": {
+      "AdaSdk\\": "src/"
+    }
+  },
+  "description": "Helper library to use the ADA RESTful API",
+  "homepage": "https://github.com/lynxlab/ada-php-sdk",
+  "keywords": [ "ada", "lynxlab", "restapi", "client" ],
+  "license": "GPL-2.0",
+  "name" : "lynxlab/ada-php-sdk",
+  "require": {
+    "php": ">=5.3.0"
+  },
+  "type": "library"
+}
