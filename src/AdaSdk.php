@@ -523,6 +523,8 @@ class AdaSdk
 		} else {
 			$this->setAccessToken($this->_getOAuth2AccessToken());		
 		}
+
+		session_write_close();
 	}
 	
 	/**
